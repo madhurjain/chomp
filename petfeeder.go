@@ -1,0 +1,89 @@
+package main
+
+import (
+	"fmt"
+	MQTT "git.eclipse.org/gitroot/paho/org.eclipse.paho.mqtt.golang.git"
+	"html/template"
+	"log"
+	"net/http"
+	"os"
+	"time"
+)
+
+const MQTT_URL = "tcp://m11.cloudmqtt.com:18959"
+const MQTT_USERNAME = "sreudmfs"
+const MQTT_PASSWORD = "ivMAiXmR-v-1"
+const MQTT_CLIENTID = "petfeeder-server"
+const MQTT_ENDPOINT = "/device"
+
+//define a function for the default message handler
+var f MQTT.MessageHandler = func(client *MQTT.Client, msg MQTT.Message) {
+	fmt.Printf("TOPIC: %s\n", msg.Topic())
+	fmt.Printf("MSG: %s\n", msg.Payload())
+}
+
+func test() {
+	//create a ClientOptions struct setting the broker address, clientid, turn
+	//off trace output and set the default message handler
+	opts := MQTT.NewClientOptions().AddBroker(MQTT_URL)
+	opts.SetUsername(MQTT_USERNAME)
+	opts.SetPassword(MQTT_PASSWORD)
+	opts.SetClientID(MQTT_CLIENTID)
+	opts.SetDefaultPublishHandler(f)
+
+	//create and start a client using the above ClientOptions
+	c := MQTT.NewClient(opts)
+	if token := c.Connect(); token.Wait() && token.Error() != nil {
+		panic(token.Error())
+	}
+
+	//subscribe to the topic /go-mqtt/sample and request messages to be delivered
+	//at a maximum qos of zero, wait for the receipt to confirm the subscription
+	if token := c.Subscribe("go-mqtt/sample", 0, nil); token.Wait() && token.Error() != nil {
+		fmt.Println(token.Error())
+		os.Exit(1)
+	}
+
+	//Publish 5 messages to /go-mqtt/sample at qos 1 and wait for the receipt
+	//from the server after sending each message
+	for i := 0; i < 5; i++ {
+		text := fmt.Sprintf("this is msg #%d!", i)
+		token := c.Publish("go-mqtt/sample", 0, false, text)
+		token.Wait()
+	}
+
+	time.Sleep(3 * time.Second)
+
+	//unsubscribe from /go-mqtt/sample
+	if token := c.Unsubscribe("go-mqtt/sample"); token.Wait() && token.Error() != nil {
+		fmt.Println(token.Error())
+		os.Exit(1)
+	}
+
+	c.Disconnect(250)
+}
+
+// Cache templates
+var templates = template.Must(template.ParseFiles("home.html"))
+
+func homeHandler(w http.ResponseWriter, r *http.Request) {
+	templates.ExecuteTemplate(w, "home.html", nil)
+}
+
+func main() {
+	// test()
+	httpHost := os.Getenv("HOST")
+	httpPort := os.Getenv("PORT")
+	if httpPort == "" {
+		httpPort = "8086"
+	}
+
+	http.HandleFunc("/", homeHandler)
+
+	http.HandleFunc("/assets/", func(w http.ResponseWriter, r *http.Request) {
+		http.ServeFile(w, r, r.URL.Path[1:])
+	})
+
+	log.Printf("PetFeeder server listening on %s:%s\n", httpHost, httpPort)
+	http.ListenAndServe(httpHost+":"+httpPort, nil)
+}
