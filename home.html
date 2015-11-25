@@ -6,12 +6,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="description" content="">
     <meta name="author" content="">
-    <link rel="icon" href="assets/favicon.ico">
+    <!-- <link rel="icon" href="assets/favicon.ico"> -->
 
     <title>PetFeeder</title>
 		
 		<link href='https://fonts.googleapis.com/css?family=Pacifico' rel='stylesheet' type='text/css'>    
     <link href="assets/css/bootstrap.min.css" rel="stylesheet">
+    <link href="assets/css/bootflat.min.css" rel="stylesheet">
+    <link href="assets/css/font-awesome.min.css" rel="stylesheet">
+    <link href="assets/css/animate.css" rel="stylesheet">
     <link href="assets/css/cover.css" rel="stylesheet">
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
@@ -27,13 +30,21 @@
         <div class="cover-container">
           <div class="masthead clearfix">
             <div class="inner">
-              <h3 class="masthead-brand">PetFeeder</h3>              
+              <h3 class="masthead-brand"><i class="fa fa-paw"></i> PetFeeder</h3>              
             </div>
           </div>
-          <div class="inner cover">            
-            <p class="lead">
-              <a href="#" onclick="feed()" class="btn btn-lg btn-success">Feed Now</a>
-            </p>
+          <div class="inner cover">
+            <div class="panel panel-primary">              
+              <div class="panel-heading"><i class="fa fa-bolt"></i> Actions</div>
+              <div class="panel-body text-center">
+                <a href="#" onclick="feed()" class="btn btn-lg btn-danger"><i class="fa fa-cutlery"></i> Feed Now</a>
+              </div>              
+            </div>
+            <div class="panel panel-info">              
+              <div class="panel-heading"><i class="fa fa-tasks"></i> Event Logs</div>
+              <div id="event-logs" class="panel-body">                
+              </div>              
+            </div>
           </div>
           <div class="mastfoot">
             <div class="inner">
@@ -44,7 +55,12 @@
       </div>
     </div>
   </body>
+    
+  <script type="text/javascript" src="assets/js/jquery-1.11.0.min.js"></script>
   <script type="text/javascript" src="assets/js/mqttws31-min.js"></script>
+  <script type="text/javascript" src="assets/js/icheck.min.js"></script>
+  <script type="text/javascript" src="assets/js/jquery.fs.selecter.min.js"></script>
+  <script type="text/javascript" src="assets/js/jquery.fs.stepper.min.js"></script>
   <script>
       // Create a client instance
     client = new Paho.MQTT.Client("m11.cloudmqtt.com", 38959, "web_" + parseInt(Math.random() * 100, 10));
@@ -60,7 +76,7 @@
     function onConnect() {
       // Once a connection has been made, make a subscription and send a message.
       console.log("onConnect");
-      client.subscribe("/feeder/status");
+      client.subscribe("/feeder/#");
       message = new Paho.MQTT.Message("hello");
       message.destinationName = "/feeder/status";
       client.send(message); 
@@ -69,7 +85,7 @@
     function feed() {
       message = new Paho.MQTT.Message("feed");
       message.destinationName = "/feeder/control";
-      client.send(message); 
+      client.send(message);               
     }
 
     // called when the client loses its connection
@@ -82,6 +98,16 @@
     // called when a message arrives
     function onMessageArrived(message) {
       console.log("onMessageArrived:"+message.destinationName+"::"+message.payloadString);
+      if(message.destinationName == "/feeder/status/log") {
+        var event = $('<div/>', { "class":"alert alert-success event animated slideInRight" });
+        event.html("<strong>Heads up!</strong> Someone at the feeder. Distance = "+message.payloadString+"cm");
+        event.prependTo('#event-logs');        
+        if($('#event-logs').children().length > 3) {
+          $('#event-logs .event:last').fadeOut(function(){
+            $(this).remove();
+          });
+        }
+      }
     }
     </script>
 </html>
