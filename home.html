@@ -57,56 +57,37 @@
   </body>
     
   <script type="text/javascript" src="assets/js/jquery-1.11.0.min.js"></script>
-  <script type="text/javascript" src="assets/js/mqttws31-min.js"></script>
   <script type="text/javascript" src="assets/js/icheck.min.js"></script>
   <script type="text/javascript" src="assets/js/jquery.fs.selecter.min.js"></script>
   <script type="text/javascript" src="assets/js/jquery.fs.stepper.min.js"></script>
   <script>
-      // Create a client instance
-    client = new Paho.MQTT.Client("m11.cloudmqtt.com", 38959, "web_" + parseInt(Math.random() * 100, 10));
-
-    // set callback handlers
-    client.onConnectionLost = onConnectionLost;
-    client.onMessageArrived = onMessageArrived;
-
-    // connect the client
-    client.connect({useSSL: true, userName: "sreudmfs", password: "ivMAiXmR-v-1", onSuccess:onConnect});
-
-    // called when the client connects
-    function onConnect() {
-      // Once a connection has been made, make a subscription and send a message.
-      console.log("onConnect");
-      client.subscribe("/feeder/#");
-      message = new Paho.MQTT.Message("hello");
-      message.destinationName = "/feeder/status";
-      client.send(message); 
-    }
-    
-    function feed() {
-      message = new Paho.MQTT.Message("feed");
-      message.destinationName = "/feeder/control";
-      client.send(message);               
-    }
-
-    // called when the client loses its connection
-    function onConnectionLost(responseObject) {
-      if (responseObject.errorCode !== 0) {
-        console.log("onConnectionLost:"+responseObject.errorMessage);
+    var conn;
+    if (window["WebSocket"]) {
+      conn = new WebSocket("ws://"+window.location.host+"/ws");
+      conn.onclose = function(evt) {
+          console.log("Connection closed");
       }
+      conn.onmessage = onMessageArrived;
+    } else {
+        console.log("Your browser does not support WebSockets");
+    }  
+
+    function feed() {
+      console.log("feed the pet");
+      conn.send("feed");
     }
 
     // called when a message arrives
-    function onMessageArrived(message) {
-      console.log("onMessageArrived:"+message.destinationName+"::"+message.payloadString);
-      if(message.destinationName == "/feeder/status/log") {
-        var event = $('<div/>', { "class":"alert alert-success event animated slideInRight" });
-        event.html("<strong>Heads up!</strong> Someone at the feeder. Distance = "+message.payloadString+"cm");
-        event.prependTo('#event-logs');        
-        if($('#event-logs').children().length > 3) {
-          $('#event-logs .event:last').fadeOut(function(){
-            $(this).remove();
-          });
-        }
+    function onMessageArrived(evt) {
+      var message = evt.data;
+      console.log("onMessageArrived:"+message);
+      var event = $('<div/>', { "class":"alert alert-success event animated slideInRight" });
+      event.html("<strong>Heads up!</strong> Someone at the feeder. Distance = "+message+"cm");
+      event.prependTo('#event-logs');        
+      if($('#event-logs').children().length > 3) {
+        $('#event-logs .event:last').fadeOut(function(){
+          $(this).remove();
+        });
       }
     }
     </script>
