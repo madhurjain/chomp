@@ -30,7 +30,7 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 }
 
-// connection is an middleman between the websocket connection and the hub
+// connection is an middleman between the websocket connection and the hub.
 type connection struct {
 	// The websocket connection.
 	ws *websocket.Conn
@@ -39,7 +39,7 @@ type connection struct {
 	send chan []byte
 }
 
-// readPump pumps messages from the websocket connection to the hub
+// readPump pumps messages from the websocket connection to the hub.
 func (c *connection) readPump() {
 	defer func() {
 		h.unregister <- c
@@ -53,17 +53,17 @@ func (c *connection) readPump() {
 		if err != nil {
 			break
 		}
-		h.received <- message
+		h.broadcast <- message
 	}
 }
 
-// write writes a message with the given message type and payload
+// write writes a message with the given message type and payload.
 func (c *connection) write(mt int, payload []byte) error {
 	c.ws.SetWriteDeadline(time.Now().Add(writeWait))
 	return c.ws.WriteMessage(mt, payload)
 }
 
-// writePump pumps messages from the hub to the websocket connection
+// writePump pumps messages from the hub to the websocket connection.
 func (c *connection) writePump() {
 	ticker := time.NewTicker(pingPeriod)
 	defer func() {
@@ -88,8 +88,12 @@ func (c *connection) writePump() {
 	}
 }
 
-// serveWs handles websocket requests from the peer.
+// serverWs handles websocket requests from the peer.
 func serveWs(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		http.Error(w, "Method not allowed", 405)
+		return
+	}
 	ws, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Println(err)
